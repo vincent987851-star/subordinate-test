@@ -1606,7 +1606,7 @@ export default function DanmakuScreen({
                       <Thermometer className="w-3 h-3 text-orange-400" />
                       <span>核心體溫:</span>
                     </span>
-                    <div className="flex items-center gap-1 justify-start flex-wrap">
+                    <div className="flex items-center gap-1 justify-start">
                       <input
                         type="number"
                         step="0.1"
@@ -1626,30 +1626,34 @@ export default function DanmakuScreen({
                         placeholder="體溫"
                       />
                       <span className="text-[9px] text-slate-400 font-sans shrink-0 ml-0.5">度C</span>
+                    </div>
+                  </div>
 
-                      {/* 追加手動輸入的心跳 (bpm) */}
-                      <div className="flex items-center gap-1 ml-2 border-l border-slate-800/80 pl-2 shrink-0">
-                        <Heart className="w-3 h-3 text-rose-500 animate-pulse shrink-0" />
-                        <span className="text-slate-400 text-[10px]">心跳:</span>
-                        <input
-                          type="number"
-                          value={currentElder.heartRate !== undefined ? currentElder.heartRate : 75}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0;
-                            setElderProfiles(prev => ({
-                              ...prev,
-                              [elderId]: {
-                                ...prev[elderId],
-                                heartRate: val
-                              }
-                            }));
-                            setBpLastUpdated(getCurrentFormattedTime());
-                          }}
-                          className="w-14 bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-left text-rose-300 font-bold focus:border-pink-500 outline-none text-[11px]"
-                          placeholder="心跳"
-                        />
-                        <span className="text-[9px] text-slate-400 font-sans shrink-0">bpm</span>
-                      </div>
+                  {/* 追加手動輸入的心跳 (bpm) — 獨立成一行避免溢出 */}
+                  <div className="flex items-center justify-start gap-3 text-xs font-mono">
+                    <span className="text-slate-400 flex items-center gap-1 shrink-0 w-[72px]">
+                      <Heart className="w-3 h-3 text-rose-500 animate-pulse" />
+                      <span>心跳:</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={currentElder.heartRate !== undefined ? currentElder.heartRate : 75}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 0;
+                          setElderProfiles(prev => ({
+                            ...prev,
+                            [elderId]: {
+                              ...prev[elderId],
+                              heartRate: val
+                            }
+                          }));
+                          setBpLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-16 bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-left text-rose-300 font-bold focus:border-pink-500 outline-none text-[11px]"
+                        placeholder="心跳"
+                      />
+                      <span className="text-[9px] text-slate-400 font-sans shrink-0">bpm</span>
                     </div>
                   </div>
 
@@ -1671,7 +1675,7 @@ export default function DanmakuScreen({
                           }
                         }));
                       }}
-                      className="w-48 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-left text-yellow-500 font-bold focus:border-pink-500 outline-none text-[11px]"
+                      className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-left text-yellow-500 font-bold focus:border-pink-500 outline-none text-[11px]"
                       placeholder="健康 (可手動更新輸入)"
                     />
                   </div>
