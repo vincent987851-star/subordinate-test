@@ -41,6 +41,13 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldListenRef = useRef(false);
 
+  // Refs to always access latest state in SpeechRecognition closure
+  const pendingVoiceMoveRef = useRef(pendingVoiceMove);
+  pendingVoiceMoveRef.current = pendingVoiceMove;
+
+  const selectedIdxRef = useRef(selectedIdx);
+  selectedIdxRef.current = selectedIdx;
+
   // Sound generator
   const playSound = (type: 'move' | 'capture' | 'check' | 'error' | 'win') => {
     try {
@@ -430,12 +437,15 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
     const clean = normalizeVoiceText(text);
 
     // HIGHEST PRIORITY: Confirmation and Cancellation commands when in pending/selected state
-    const isConfirm = /確定|確認|卻定|雀定|執行|對|ok|okay|是的|行|好|走|確認走|確定走|走吧|沒錯|正確|同意|要|好啊|走這步/.test(rawLower) || /確定|確認|對|走|好/.test(clean);
-    const isCancel = /取消|重選|不對|不是|算了一步|算了|不要|別|重新選擇|錯了|別走/.test(rawLower) || /取消|重選|不對|不是|算了/.test(clean);
+    const isConfirm = /確定|確認|卻定|雀定|執行|對|ok|okay|是的|行|好|走|確認走|確定走|走吧|沒錯|正確|同意|要|好啊|走這步|確定執行/.test(rawLower) || /確定|確認|對|走|好/.test(clean);
+    const isCancel = /取消|重選|不對|不是|算了一步|算了|不要|別|重新選擇|錯了|別走|取消選擇/.test(rawLower) || /取消|重選|不對|不是|算了/.test(clean);
 
-    if (pendingVoiceMove) {
+    const currentPending = pendingVoiceMoveRef.current;
+    const currentSelected = selectedIdxRef.current;
+
+    if (currentPending) {
       if (isConfirm) {
-        const { from, to, notation } = pendingVoiceMove;
+        const { from, to, notation } = currentPending;
         const ok = performMove(from, to);
         if (ok) {
           addLog(`✅ 聲控確認執行著法：${notation}`, turn === 'w' ? 'red' : 'black');
@@ -451,7 +461,7 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
         addLog('❌ 已取消棋子選擇', 'system');
         return;
       }
-    } else if (selectedIdx !== null) {
+    } else if (currentSelected !== null) {
       if (isCancel) {
         setSelectedIdx(null);
         speakAnnouncement('已取消選擇');
@@ -459,10 +469,10 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
         return;
       }
       if (isConfirm) {
-        const targets = engine.generateLegalMoves().filter(m => m.from === selectedIdx).map(m => m.to);
+        const targets = engine.generateLegalMoves().filter(m => m.from === currentSelected).map(m => m.to);
         if (targets.length === 1) {
-          const notation = engine.formatMoveTraditional(selectedIdx, targets[0]);
-          const ok = performMove(selectedIdx, targets[0]);
+          const notation = engine.formatMoveTraditional(currentSelected, targets[0]);
+          const ok = performMove(currentSelected, targets[0]);
           if (ok) {
             addLog(`✅ 聲控確認唯一著法：${notation}`, turn === 'w' ? 'red' : 'black');
           }
