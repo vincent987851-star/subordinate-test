@@ -854,7 +854,8 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
   const renderBoard = () => (
     <div 
       ref={containerRef}
-      className="relative aspect-[9/10] bg-slate-950 rounded-2xl border border-slate-800/80 p-7 sm:p-8 shadow-2xl flex items-center justify-center select-none w-full"
+      className="relative aspect-[9/10] bg-slate-950 rounded-2xl border border-slate-800/80 p-6 sm:p-7 shadow-2xl flex items-center justify-center select-none mx-auto"
+      style={{ width: fullscreen ? 'min(100%, 68vh)' : '100%' }}
     >
       {/* Active Board Area */}
       <div className="relative w-full h-full">
