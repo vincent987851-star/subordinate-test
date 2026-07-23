@@ -30,6 +30,272 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", mode: process.env.NODE_ENV });
 });
 
+// ==========================================
+// 全網多用戶即時同步資料庫與 API (Multi-User Live Sync)
+// ==========================================
+import fs from "fs";
+
+const SYNC_DIR = path.join(process.cwd(), 'data', 'sync');
+if (!fs.existsSync(SYNC_DIR)) {
+  fs.mkdirSync(SYNC_DIR, { recursive: true });
+}
+
+const DANMAKU_FILE = path.join(SYNC_DIR, 'danmakus.json');
+const USERS_FILE = path.join(SYNC_DIR, 'users.json');
+const PLAYLIST_FILE = path.join(SYNC_DIR, 'playlist.json');
+
+const DEFAULT_AVATARS = {
+  sugar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=sugar&hair=long&hairColor=ff85ad&mouth=smile&eyes=happy',
+  leo: 'https://api.dicebear.com/7.x/bottts/svg?seed=leo&colors=blue&texture=radar',
+  cat: 'https://api.dicebear.com/7.x/identicon/svg?seed=cat&colors=orange',
+  sunny: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sunny&top=shortCurly&accessories=round&hairColor=auburn',
+  retro: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=retro&glasses=sunglasses'
+};
+
+const DEFAULT_USERS = [
+  {
+    id: "user_sugar",
+    name: "夢乃糖糖 🎀",
+    avatar: DEFAULT_AVATARS.sugar,
+    status: "online",
+    statusText: "直播進行中",
+    todayStatement: "大家早安！今天也是充滿粉紅色泡泡的一天，記得點進來跟我留言聊天哦～ 💖",
+    healthDataId: "health_streamer",
+    comments: [
+      { id: "c1", sender: "極客雷歐 💻", text: "今天直播設備聲音有點小，幫你調好了！", time: "2026-07-20 09:15", healthDataId: "health_coder" },
+      { id: "c2", sender: "路人小明", text: "糖糖今天戴的貓耳耳機超可愛！求連結！", time: "2026-07-20 10:20" },
+      { id: "c3", sender: "喵喵宇航員 🐱", text: "喵～糖糖，等等要一起連線打遊戲嗎？", time: "2026-07-20 10:45", healthDataId: "health_sleepy_cat" }
+    ]
+  },
+  {
+    id: "user_leo",
+    name: "極客雷歐 💻",
+    avatar: DEFAULT_AVATARS.leo,
+    status: "busy",
+    statusText: "編譯代碼中",
+    todayStatement: "別吵我，我正跟一個頑固的 Bug 進行生死決鬥！這段寫完我就要去補眠了... ☕",
+    healthDataId: "health_coder",
+    comments: [
+      { id: "c4", sender: "夢乃糖糖 🎀", text: "雷歐加油！Bug 退散！不要又爆肝了喔～", time: "2026-07-20 09:30", healthDataId: "health_streamer" },
+      { id: "c5", sender: "系統管理員", text: "伺服器負載偏高，請雷歐大佬抽空優化一下緩存機制。", time: "2026-07-20 10:05" },
+      { id: "c6", sender: "訪客甲", text: "大佬，想請問你鍵盤是用什麼軸的？打字聲好好聽！", time: "2026-07-20 11:00" }
+    ]
+  },
+  {
+    id: "user_cat",
+    name: "喵喵宇航員 🐱",
+    avatar: DEFAULT_AVATARS.cat,
+    status: "away",
+    statusText: "太空飄浮中",
+    todayStatement: "喵嗚～在 3 萬英呎的星空進行太空漫遊，有人可以快遞貓罐頭上來嗎？🚀",
+    healthDataId: "health_sleepy_cat",
+    comments: [
+      { id: "c7", sender: "陽光晴晴 ☀️", text: "貓貓太萌了，每次看你飄浮都覺得超療癒！", time: "2026-07-20 08:45", healthDataId: "health_optimal" },
+      { id: "c8", sender: "復古霓虹 🌇", text: "太空中聽電子樂最配了，推薦你我的霓虹歌單！", time: "2026-07-20 09:12", healthDataId: "health_chill_out" }
+    ]
+  },
+  {
+    id: "user_sunny",
+    name: "陽光晴晴 ☀️",
+    avatar: DEFAULT_AVATARS.sunny,
+    status: "online",
+    statusText: "心情明亮",
+    todayStatement: "今天天氣真好！出門喝杯燕麥拿鐵，祝大家今天都有個順利美好的開始！🍀",
+    healthDataId: "health_optimal",
+    comments: [
+      { id: "c9", sender: "訪客乙", text: "早安晴晴！看到你的留言，感覺今天工作都有動力了！", time: "2026-07-20 08:30" },
+      { id: "c10", sender: "夢乃糖糖 🎀", text: "晴晴今天穿的那件黃色洋裝太好看了吧！", time: "2026-07-20 09:50", healthDataId: "health_streamer" }
+    ]
+  },
+  {
+    id: "user_retro",
+    name: "復古霓虹 🌇",
+    avatar: DEFAULT_AVATARS.retro,
+    status: "offline",
+    statusText: "時空旅行中",
+    todayStatement: "Welcome to 1980s. 正在循環播放 Synthwave 電子樂中... 暫時不在服務區。📼",
+    healthDataId: "health_chill_out",
+    comments: [
+      { id: "c11", sender: "極客雷歐 💻", text: "你的 Synthwave 歌單寫 code 超配，已經循環播放 8 小時了。", time: "2026-07-20 02:40", healthDataId: "health_coder" },
+      { id: "c12", sender: "路人阿強", text: "這張頭像也太帥了吧！有賽博朋克的味道。", time: "2026-07-20 07:15" }
+    ]
+  }
+];
+
+const DEFAULT_PLAYLIST = [
+  { title: '🎧 Lofi Girl 讀書電台', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' },
+  { title: '🌌 Synthwave 霓虹慢遙', url: 'https://www.youtube.com/watch?v=4xDzrJKXOOY' },
+  { title: '蔡琴 - 被遺忘的時光', url: 'https://www.youtube.com/watch?v=022pP3pWJm4' },
+  { title: 'POISON - 毒藥廣播樂章', url: 'https://www.youtube.com/watch?v=5qap5aO4i9A' }
+];
+
+const DEFAULT_DANMAKUS = [
+  {
+    id: 'd_welcome_1',
+    text: '🎉 歡迎來到全網連線彈幕與留言板廣場！',
+    senderName: '系統小助手 🤖',
+    avatar: DEFAULT_AVATARS.sugar,
+    isUserSent: false,
+    speed: 6,
+    track: 0,
+    top: 50,
+    paused: false,
+    createdAt: Date.now()
+  },
+  {
+    id: 'd_welcome_2',
+    text: '✨ 任何人在這裡發送彈幕、留言或點歌，所有線上訪客都能即時看到！',
+    senderName: '極客雷歐 💻',
+    avatar: DEFAULT_AVATARS.leo,
+    isUserSent: false,
+    speed: 7,
+    track: 1,
+    top: 100,
+    paused: false,
+    createdAt: Date.now() + 500
+  }
+];
+
+// Memory caches
+let syncDanmakus: any[] = [];
+let syncUsers: any[] = [];
+let syncPlaylist: any[] = [];
+
+try {
+  if (fs.existsSync(DANMAKU_FILE)) {
+    syncDanmakus = JSON.parse(fs.readFileSync(DANMAKU_FILE, 'utf-8'));
+  } else {
+    syncDanmakus = DEFAULT_DANMAKUS;
+    fs.writeFileSync(DANMAKU_FILE, JSON.stringify(syncDanmakus, null, 2));
+  }
+} catch (e) { syncDanmakus = DEFAULT_DANMAKUS; }
+
+try {
+  if (fs.existsSync(USERS_FILE)) {
+    syncUsers = JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
+  } else {
+    syncUsers = DEFAULT_USERS;
+    fs.writeFileSync(USERS_FILE, JSON.stringify(syncUsers, null, 2));
+  }
+} catch (e) { syncUsers = DEFAULT_USERS; }
+
+try {
+  if (fs.existsSync(PLAYLIST_FILE)) {
+    syncPlaylist = JSON.parse(fs.readFileSync(PLAYLIST_FILE, 'utf-8'));
+  } else {
+    syncPlaylist = DEFAULT_PLAYLIST;
+    fs.writeFileSync(PLAYLIST_FILE, JSON.stringify(syncPlaylist, null, 2));
+  }
+} catch (e) { syncPlaylist = DEFAULT_PLAYLIST; }
+
+// GET All Sync State
+app.get("/api/sync/all", (req: express.Request, res: express.Response) => {
+  res.json({
+    users: syncUsers,
+    danmakus: syncDanmakus,
+    playlist: syncPlaylist
+  });
+});
+
+// POST Send New Danmaku
+app.post("/api/sync/danmaku", (req: express.Request, res: express.Response) => {
+  const { text, senderName, avatar, targetUserId, song } = req.body;
+  if (!text || !text.trim()) {
+    res.status(400).json({ error: "Danmaku text cannot be empty" });
+    return;
+  }
+
+  const track = Math.floor(Math.random() * 5);
+  const top = (track * 45) + 30;
+  const speed = Math.floor(Math.random() * 4) + 6;
+
+  const newDanmaku = {
+    id: `d_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+    text: text.trim(),
+    senderName: senderName || '熱情訪客',
+    avatar: avatar || DEFAULT_AVATARS.sugar,
+    isUserSent: true,
+    targetUserId: targetUserId || undefined,
+    song: song || undefined,
+    speed,
+    track,
+    top,
+    paused: false,
+    createdAt: Date.now()
+  };
+
+  syncDanmakus.push(newDanmaku);
+  if (syncDanmakus.length > 100) {
+    syncDanmakus = syncDanmakus.slice(-100);
+  }
+
+  try {
+    fs.writeFileSync(DANMAKU_FILE, JSON.stringify(syncDanmakus, null, 2));
+  } catch (err) {}
+
+  res.json({ success: true, danmaku: newDanmaku, danmakus: syncDanmakus });
+});
+
+// POST Send New Comment to User Profile Message Board
+app.post("/api/sync/comments", (req: express.Request, res: express.Response) => {
+  const { userId, comment } = req.body;
+  if (!userId || !comment || !comment.text) {
+    res.status(400).json({ error: "Missing userId or comment payload" });
+    return;
+  }
+
+  const userIndex = syncUsers.findIndex((u: any) => u.id === userId);
+  if (userIndex === -1) {
+    res.status(404).json({ error: "User profile not found" });
+    return;
+  }
+
+  const newComment = {
+    id: `c_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    sender: comment.sender || '匿名好朋友',
+    text: comment.text.trim(),
+    time: comment.time || new Date().toLocaleString('zh-TW', { hour12: false }),
+    replyTo: comment.replyTo || undefined,
+    healthDataId: comment.healthDataId || undefined,
+    song: comment.song || undefined,
+    googleAvatar: comment.googleAvatar || undefined,
+    isGoogleAuth: comment.isGoogleAuth || undefined
+  };
+
+  if (!syncUsers[userIndex].comments) {
+    syncUsers[userIndex].comments = [];
+  }
+  syncUsers[userIndex].comments.unshift(newComment);
+
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(syncUsers, null, 2));
+  } catch (err) {}
+
+  res.json({ success: true, user: syncUsers[userIndex], users: syncUsers });
+});
+
+// POST Add Song to Shared Playlist
+app.post("/api/sync/playlist", (req: express.Request, res: express.Response) => {
+  const { song } = req.body;
+  if (!song || !song.title || !song.url) {
+    res.status(400).json({ error: "Invalid song payload" });
+    return;
+  }
+
+  const exists = syncPlaylist.some(s => s.url === song.url);
+  if (!exists) {
+    syncPlaylist.unshift(song);
+    if (syncPlaylist.length > 30) {
+      syncPlaylist = syncPlaylist.slice(0, 30);
+    }
+    try {
+      fs.writeFileSync(PLAYLIST_FILE, JSON.stringify(syncPlaylist, null, 2));
+    } catch (err) {}
+  }
+
+  res.json({ success: true, playlist: syncPlaylist });
+});
+
 // Simple file & memory database for storing images via API
 import fs from "fs";
 

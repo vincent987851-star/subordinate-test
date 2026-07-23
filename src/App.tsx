@@ -165,6 +165,89 @@ export default function App() {
   // Track lanes for danmaku collision prevention
   const [trackLocks, setTrackLocks] = useState<number[]>(Array(8).fill(0));
 
+  // Track seen danmaku IDs to avoid duplicate local animations
+  const knownDanmakuIdsRef = React.useRef<Set<string>>(new Set());
+
+  // Multi-user Real-time Sync Polling
+  useEffect(() => {
+    const fetchSyncData = async () => {
+      try {
+        const res = await fetch('/api/sync/all');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // 1. Sync User Profiles & Guestbook Comments across all visitors
+        if (Array.isArray(data.users) && data.users.length > 0) {
+          setUsers(data.users);
+        }
+
+        // 2. Sync Shared YouTube Playlist
+        if (Array.isArray(data.playlist) && data.playlist.length > 0) {
+          try {
+            const saved = localStorage.getItem('bilibili_personal_playlist');
+            if (!saved) {
+              localStorage.setItem('bilibili_personal_playlist', JSON.stringify(data.playlist));
+            }
+          } catch (e) {}
+        }
+
+        // 3. Sync Live Flying Danmakus from other users/devices
+        if (Array.isArray(data.danmakus)) {
+          data.danmakus.forEach((d: DanmakuMessage) => {
+            if (!knownDanmakuIdsRef.current.has(d.id)) {
+              knownDanmakuIdsRef.current.add(d.id);
+              // Spawn remote danmaku on screen!
+              spawnDanmaku(d.text, d.senderName, d.avatar, d.isUserSent, d.targetUserId, d.song);
+            }
+          });
+        }
+      } catch (e) {
+        // Quiet fallback if server API is unavailable
+      }
+    };
+
+    fetchSyncData();
+    const syncInterval = setInterval(fetchSyncData, 3000);
+    return () => clearInterval(syncInterval);
+  }, [speedScale, showDanmaku, trackLocks]);
+
+  // Backend Sync API Helper Methods
+  const postDanmakuToBackend = async (text: string, senderName: string, avatar: string, targetUserId?: string, song?: RecommendedSong) => {
+    try {
+      const res = await fetch('/api/sync/danmaku', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, senderName, avatar, targetUserId, song })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.danmaku?.id) {
+          knownDanmakuIdsRef.current.add(data.danmaku.id);
+        }
+      }
+    } catch (e) {}
+  };
+
+  const postCommentToBackend = async (userId: string, comment: Partial<Comment>) => {
+    try {
+      await fetch('/api/sync/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, comment })
+      });
+    } catch (e) {}
+  };
+
+  const postSongToBackend = async (song: RecommendedSong) => {
+    try {
+      await fetch('/api/sync/playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song })
+      });
+    } catch (e) {}
+  };
+
   // Sync to local storage
   useEffect(() => {
     localStorage.setItem('bilibili_users', JSON.stringify(users));
@@ -394,16 +477,15 @@ export default function App() {
       displayDanmakuText = `🎵 [點播: ${song.title}] ${displayDanmakuText}`;
     }
     spawnDanmaku(displayDanmakuText, senderName, avatarUrl, true, undefined, song);
+    postDanmakuToBackend(displayDanmakuText, senderName, avatarUrl, undefined, song);
 
     // Auto-stream the song immediately for the sender
     if (song) {
       setCurrentSong(song);
+      postSongToBackend(song);
     }
 
     // 2. Also register it as an active comment in the database!
-    // Since it is a general visit comment, let's randomly attach it to users guestbooks so they get updates!
-    // Or if they commented on a specific user, it gets attached there.
-    // For general form, let's append it as a comment to a random user or "夢乃糖糖" so it registers in the system
     const targetUserId = selectedUserId || "user_sugar";
     const now = new Date();
     const formattedTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -426,6 +508,7 @@ export default function App() {
       }
       return u;
     }));
+    postCommentToBackend(targetUserId, newComment);
   };
 
   // Add Comment on selected user's profile guestbook
@@ -459,6 +542,7 @@ export default function App() {
       }
       return u;
     }));
+    postCommentToBackend(userId, newComment);
  
     // Trigger sweet sound
     playSoundEffect(750, 'sine', 0.15);
@@ -475,6 +559,7 @@ export default function App() {
       ? googleAvatar 
       : `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(sender)}`;
     spawnDanmaku(displayDanmakuText, sender, commenterAvatar, true, userId);
+    postDanmakuToBackend(displayDanmakuText, sender, commenterAvatar, userId);
   };
 
   const handleUpdateUserProfile = (userId: string, updates: Partial<UserProfile>) => {
@@ -502,6 +587,7 @@ export default function App() {
     setCurrentSong(song);
     setShowMiniPlayer(true); // Automatically show video player so they see the feed!
     setIsMusicPlaying(true);
+    postSongToBackend(song);
   };
 
   const handlePlayXiangqi = () => {
