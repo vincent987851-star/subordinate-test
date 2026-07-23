@@ -1,0 +1,12 @@
+{
+  "name": "Remix: Bilibili Danmaku Board",
+  "description": "Bilibili-style interactive danmaku message board with space-linker game, personal dashboards, and database health check-in.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
