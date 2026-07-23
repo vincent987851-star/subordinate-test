@@ -1550,135 +1550,133 @@ export default function DanmakuScreen({
                 </div>
               </div>
 
-              <div className="bg-slate-950/50 p-2.5 rounded-lg border border-slate-850 space-y-2">
-                <span className="text-[9px] text-pink-400 block uppercase font-bold tracking-wider">
+              {/* ── 2×2 Grid 步進器 ── */}
+              <div className="bg-slate-950/50 p-2 rounded-lg border border-slate-800/60">
+                <span className="text-[9px] text-pink-400 block uppercase font-bold tracking-wider mb-2">
                   系統綁定穿戴感測信號(未來追加)現手動輸入
                 </span>
-                
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-start gap-3 text-xs font-mono">
-                    <span className="text-slate-400 flex items-center gap-1 shrink-0 w-[72px]">
-                      <Heart className="w-3 h-3 text-rose-500 animate-pulse" />
-                      <span>血壓:</span>
-                    </span>
-                    <div className="flex items-center gap-1 justify-start">
-                      <input
-                        type="number"
-                        value={currentElder.bpHigh !== undefined ? currentElder.bpHigh : 120}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setElderProfiles(prev => ({
-                            ...prev,
-                            [elderId]: {
-                              ...prev[elderId],
-                              bpHigh: val
-                            }
-                          }));
-                          setBpLastUpdated(getCurrentFormattedTime());
-                        }}
-                        className="w-16 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-left text-slate-100 font-bold focus:border-pink-500 outline-none text-[11px]"
-                        placeholder="高壓"
-                      />
-                      <span className="text-slate-600">/</span>
-                      <input
-                        type="number"
-                        value={currentElder.bpLow !== undefined ? currentElder.bpLow : 80}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setElderProfiles(prev => ({
-                            ...prev,
-                            [elderId]: {
-                              ...prev[elderId],
-                              bpLow: val
-                            }
-                          }));
-                          setBpLastUpdated(getCurrentFormattedTime());
-                        }}
-                        className="w-16 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-left text-slate-100 font-bold focus:border-pink-500 outline-none text-[11px]"
-                        placeholder="低壓"
-                      />
-                      <span className="text-[9px] text-slate-400 font-sans shrink-0 ml-0.5">mmHg</span>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-2 gap-2">
 
-                  <div className="flex items-center justify-start gap-3 text-xs font-mono">
-                    <span className="text-slate-400 flex items-center gap-1 shrink-0 w-[72px]">
-                      <Thermometer className="w-3 h-3 text-orange-400" />
-                      <span>核心體溫:</span>
-                    </span>
-                    <div className="flex items-center gap-1 justify-start">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={currentElder.bodyTemp !== undefined ? currentElder.bodyTemp : 36.5}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value) || 0;
-                          setElderProfiles(prev => ({
-                            ...prev,
-                            [elderId]: {
-                              ...prev[elderId],
-                              bodyTemp: val
-                            }
-                          }));
-                          setBodyTempLastUpdated(getCurrentFormattedTime());
-                        }}
-                        className="w-16 bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-left text-slate-100 font-bold focus:border-pink-500 outline-none text-[11px]"
-                        placeholder="體溫"
-                      />
-                      <span className="text-[9px] text-slate-400 font-sans shrink-0 ml-0.5">度C</span>
-                    </div>
-                  </div>
-
-                  {/* 追加手動輸入的心跳 (bpm) — 獨立成一行避免溢出 */}
-                  <div className="flex items-center justify-start gap-3 text-xs font-mono">
-                    <span className="text-slate-400 flex items-center gap-1 shrink-0 w-[72px]">
-                      <Heart className="w-3 h-3 text-rose-500 animate-pulse" />
-                      <span>心跳:</span>
+                  {/* 血壓高壓 */}
+                  <div className="bg-slate-900/60 rounded-lg p-1.5 border border-slate-800/50 flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-slate-400 flex items-center gap-0.5 font-bold">
+                      <Heart className="w-2.5 h-2.5 text-rose-500 animate-pulse" />
+                      血壓高壓
                     </span>
                     <div className="flex items-center gap-1">
-                      <input
-                        type="number"
-                        value={currentElder.heartRate !== undefined ? currentElder.heartRate : 75}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 0;
-                          setElderProfiles(prev => ({
-                            ...prev,
-                            [elderId]: {
-                              ...prev[elderId],
-                              heartRate: val
-                            }
-                          }));
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], bpHigh: Math.max(60, (prev[elderId]?.bpHigh ?? 120) - 1) } }));
                           setBpLastUpdated(getCurrentFormattedTime());
                         }}
-                        className="w-16 bg-slate-900 border border-slate-800 rounded px-1.5 py-0.5 text-left text-rose-300 font-bold focus:border-pink-500 outline-none text-[11px]"
-                        placeholder="心跳"
-                      />
-                      <span className="text-[9px] text-slate-400 font-sans shrink-0">bpm</span>
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >－</button>
+                      <span className="text-slate-100 font-bold text-sm w-8 text-center tabular-nums">{currentElder.bpHigh ?? 120}</span>
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], bpHigh: Math.min(220, (prev[elderId]?.bpHigh ?? 120) + 1) } }));
+                          setBpLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >＋</button>
                     </div>
+                    <span className="text-[9px] text-slate-500">mmHg</span>
                   </div>
 
-                  <div className="flex items-center justify-start gap-3 text-xs font-mono pt-1 border-t border-slate-900/40">
-                    <span className="text-slate-400 flex items-center gap-1 shrink-0 w-[72px]">
-                      <Shield className="w-3 h-3 text-teal-400" />
-                      <span>慢性病史:</span>
+                  {/* 血壓低壓 */}
+                  <div className="bg-slate-900/60 rounded-lg p-1.5 border border-slate-800/50 flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-slate-400 flex items-center gap-0.5 font-bold">
+                      <Heart className="w-2.5 h-2.5 text-rose-400" />
+                      血壓低壓
                     </span>
-                    <input
-                      type="text"
-                      value={currentElder.condition || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setElderProfiles(prev => ({
-                          ...prev,
-                          [elderId]: {
-                            ...prev[elderId],
-                            condition: val
-                          }
-                        }));
-                      }}
-                      className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-left text-yellow-500 font-bold focus:border-pink-500 outline-none text-[11px]"
-                      placeholder="健康 (可手動更新輸入)"
-                    />
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], bpLow: Math.max(40, (prev[elderId]?.bpLow ?? 80) - 1) } }));
+                          setBpLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >－</button>
+                      <span className="text-slate-100 font-bold text-sm w-8 text-center tabular-nums">{currentElder.bpLow ?? 80}</span>
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], bpLow: Math.min(160, (prev[elderId]?.bpLow ?? 80) + 1) } }));
+                          setBpLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >＋</button>
+                    </div>
+                    <span className="text-[9px] text-slate-500">mmHg</span>
                   </div>
+
+                  {/* 核心體溫 */}
+                  <div className="bg-slate-900/60 rounded-lg p-1.5 border border-slate-800/50 flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-slate-400 flex items-center gap-0.5 font-bold">
+                      <Thermometer className="w-2.5 h-2.5 text-orange-400" />
+                      核心體溫
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], bodyTemp: Math.max(35.0, parseFloat(((prev[elderId]?.bodyTemp ?? 36.5) - 0.1).toFixed(1))) } }));
+                          setBodyTempLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-orange-900/60 text-slate-300 hover:text-orange-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >－</button>
+                      <span className="text-orange-200 font-bold text-sm w-10 text-center tabular-nums">{(currentElder.bodyTemp ?? 36.5).toFixed(1)}</span>
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], bodyTemp: Math.min(42.0, parseFloat(((prev[elderId]?.bodyTemp ?? 36.5) + 0.1).toFixed(1))) } }));
+                          setBodyTempLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-orange-900/60 text-slate-300 hover:text-orange-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >＋</button>
+                    </div>
+                    <span className="text-[9px] text-slate-500">°C</span>
+                  </div>
+
+                  {/* 心跳 */}
+                  <div className="bg-slate-900/60 rounded-lg p-1.5 border border-slate-800/50 flex flex-col items-center gap-1">
+                    <span className="text-[9px] text-slate-400 flex items-center gap-0.5 font-bold">
+                      <Activity className="w-2.5 h-2.5 text-pink-400" />
+                      心跳
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], heartRate: Math.max(30, (prev[elderId]?.heartRate ?? 75) - 1) } }));
+                          setBpLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-pink-900/60 text-slate-300 hover:text-pink-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >－</button>
+                      <span className="text-rose-300 font-bold text-sm w-8 text-center tabular-nums">{currentElder.heartRate ?? 75}</span>
+                      <button
+                        onClick={() => {
+                          setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], heartRate: Math.min(200, (prev[elderId]?.heartRate ?? 75) + 1) } }));
+                          setBpLastUpdated(getCurrentFormattedTime());
+                        }}
+                        className="w-5 h-5 rounded bg-slate-800 hover:bg-pink-900/60 text-slate-300 hover:text-pink-300 text-xs font-bold flex items-center justify-center transition-colors cursor-pointer select-none"
+                      >＋</button>
+                    </div>
+                    <span className="text-[9px] text-slate-500">bpm</span>
+                  </div>
+
+                </div>
+
+                {/* 慢性病史 — 全寬 */}
+                <div className="mt-2 flex items-center gap-2 pt-1.5 border-t border-slate-800/40">
+                  <Shield className="w-3 h-3 text-teal-400 shrink-0" />
+                  <span className="text-[9px] text-slate-400 shrink-0 font-bold">慢性病史</span>
+                  <input
+                    type="text"
+                    value={currentElder.condition || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setElderProfiles(prev => ({ ...prev, [elderId]: { ...prev[elderId], condition: val } }));
+                    }}
+                    className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-yellow-400 font-bold focus:border-teal-500 outline-none text-[11px]"
+                    placeholder="健康 (可手動更新)"
+                  />
                 </div>
               </div>
             </div>
