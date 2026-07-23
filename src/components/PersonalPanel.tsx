@@ -33,7 +33,9 @@ import {
   BarChart3,
   TrendingUp,
   Award,
-  Users as UsersIcon
+  Users as UsersIcon,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -91,6 +93,7 @@ export default function PersonalPanel({
   const [commentText, setCommentText] = useState('');
   const [selectedHealthId, setSelectedHealthId] = useState('none');
   const [activeTab, setActiveTab] = useState<'board' | 'game' | 'xiangqi' | 'line' | 'metrics'>(initialTab || 'board');
+  const [isXiangqiFullscreen, setIsXiangqiFullscreen] = useState(false);
   
   // States for editing "Today's Status"
   const [isEditingStatement, setIsEditingStatement] = useState(false);
@@ -761,7 +764,51 @@ export default function PersonalPanel({
                 不分紅黑！支持用語音口令直接搬移棋子。向 {user.name} 的空間發起聲控挑戰！
               </p>
             </div>
-            <XiangqiVoiceGame />
+
+            {/* 放大按鈕 */}
+            <button
+              onClick={() => setIsXiangqiFullscreen(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gradient-to-r from-pink-600/20 to-rose-600/20 border border-pink-500/40 hover:border-pink-400/70 text-pink-300 font-bold text-sm transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span>全螢幕放大棋盤（長輩模式）</span>
+            </button>
+
+            {/* 預覽縮圖 */}
+            <div className="opacity-60 pointer-events-none">
+              <XiangqiVoiceGame />
+            </div>
+
+            {/* ── 全螢幕 Modal ── */}
+            {isXiangqiFullscreen && (
+              <div
+                className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-sm flex flex-col"
+                style={{ WebkitBackdropFilter: 'blur(8px)' }}
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-900/80 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Mic className="w-5 h-5 text-pink-500 animate-pulse" />
+                    <span className="text-white font-bold text-base">聲控象棋：動口不動手</span>
+                    <span className="text-[10px] text-pink-400 bg-pink-500/10 border border-pink-500/30 px-2 py-0.5 rounded-full font-bold">長輩全螢幕模式</span>
+                  </div>
+                  <button
+                    onClick={() => setIsXiangqiFullscreen(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs transition-all cursor-pointer border border-slate-700 hover:border-slate-500"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span>關閉全螢幕</span>
+                  </button>
+                </div>
+
+                {/* Modal Body — 棋盤居中放大 */}
+                <div className="flex-1 overflow-y-auto flex items-start justify-center p-4">
+                  <div className="w-full max-w-2xl">
+                    <XiangqiVoiceGame />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ) : activeTab === 'line' ? (
           /* LINE Scheduler tab content */
