@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import { UserProfile, HealthData, Comment, RecommendedSong } from '../types';
 import { HEALTH_DATABASE } from '../data/mockData';
 import { 
@@ -780,7 +781,7 @@ export default function PersonalPanel({
             </div>
 
             {/* ── 全螢幕 Modal ── */}
-            {isXiangqiFullscreen && (
+            {isXiangqiFullscreen && ReactDOM.createPortal(
               <div
                 className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-sm flex flex-col"
                 style={{ WebkitBackdropFilter: 'blur(8px)' }}
@@ -807,7 +808,8 @@ export default function PersonalPanel({
                     <XiangqiVoiceGame />
                   </div>
                 </div>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         ) : activeTab === 'line' ? (
