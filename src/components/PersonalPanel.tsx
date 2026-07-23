@@ -803,9 +803,9 @@ export default function PersonalPanel({
                 </div>
 
                 {/* Modal Body — 棋盤居中放大 */}
-                <div className="flex-1 overflow-y-auto flex items-start justify-center p-4">
-                  <div className="w-full max-w-2xl">
-                    <XiangqiVoiceGame />
+                <div className="flex-1 min-h-0 overflow-y-auto flex items-start justify-center p-3 pt-4">
+                  <div className="w-full" style={{ maxWidth: 'min(96vw, calc((100vh - 60px) * 0.93))' }}>
+                    <XiangqiVoiceGame fullscreen />
                   </div>
                 </div>
               </div>,

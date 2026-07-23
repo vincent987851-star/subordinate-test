@@ -9,7 +9,11 @@ interface GameLogEntry {
   type: 'red' | 'black' | 'system';
 }
 
-export default function XiangqiVoiceGame() {
+interface XiangqiVoiceGameProps {
+  fullscreen?: boolean;
+}
+
+export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGameProps) {
   const [engine] = useState(() => new XiangqiEngine());
   const [ai] = useState(() => new XiangqiAI());
   
@@ -847,7 +851,8 @@ export default function XiangqiVoiceGame() {
     : [];
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-xl max-w-sm w-full mx-auto select-none flex flex-col space-y-4">
+    <div className={`bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-xl select-none flex flex-col space-y-4
+      ${fullscreen ? 'max-w-none w-full p-5' : 'max-w-sm w-full mx-auto p-4'}`}>
       
       {/* Title block */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -977,7 +982,8 @@ export default function XiangqiVoiceGame() {
       {/* The 10x9 Chessboard container */}
       <div 
         ref={containerRef}
-        className="relative aspect-[9/10] bg-slate-950 rounded-xl border border-slate-800 p-6 overflow-hidden shadow-inner flex items-center justify-center select-none"
+        className={`relative aspect-[9/10] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-inner flex items-center justify-center select-none
+          ${fullscreen ? 'p-3' : 'p-6'}`}
       >
         {/* Active Board Area: This container represents the exact board boundaries. All coordinates (0% to 100%) align perfectly within this! */}
         <div className="relative w-full h-full">
@@ -1097,7 +1103,8 @@ export default function XiangqiVoiceGame() {
                     e.stopPropagation();
                     handleTileClick(i);
                   }}
-                  className={`absolute aspect-square rounded-full flex items-center justify-center font-bold text-xs sm:text-sm md:text-base transition-all duration-150 border-2 select-none z-20 cursor-pointer
+                  className={`absolute aspect-square rounded-full flex items-center justify-center font-bold transition-all duration-150 border-2 select-none z-20 cursor-pointer
+                    ${fullscreen ? 'text-base sm:text-lg' : 'text-xs sm:text-sm md:text-base'}
                     ${isSelected 
                       ? 'scale-110 border-pink-400 z-30 shadow-[0_0_12px_#ff007f]' 
                       : 'border-slate-800 shadow-md'}
