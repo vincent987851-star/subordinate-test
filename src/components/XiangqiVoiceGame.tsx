@@ -850,10 +850,194 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
     ? engine.generateLegalMoves().filter(m => m.from === selectedIdx).map(m => m.to)
     : [];
 
-  return (
-    <div className={`bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl backdrop-blur-xl select-none flex flex-col space-y-4
-      ${fullscreen ? 'max-w-none w-full p-5' : 'max-w-sm w-full mx-auto p-4'}`}>
-      
+  // Board jsx element (reusable for both normal & side-by-side fullscreen)
+  const renderBoard = () => (
+    <div 
+      ref={containerRef}
+      className="relative aspect-[9/10] bg-slate-950 rounded-2xl border border-slate-800/80 p-7 sm:p-8 shadow-2xl flex items-center justify-center select-none w-full"
+    >
+      {/* Active Board Area */}
+      <div className="relative w-full h-full">
+        {/* Draw Board grid lines (SVG) */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-45" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {/* Horizontal rows (10 rows, y = 0 to 9) */}
+          {Array(10).fill(0).map((_, i) => (
+            <line key={`h_${i}`} x1="0%" y1={`${i * 11.111}%`} x2="100%" y2={`${i * 11.111}%`} stroke="#cbd5e1" strokeWidth="1" />
+          ))}
+
+          {/* Vertical columns (split by river row 4.5) */}
+          {Array(9).fill(0).map((_, i) => {
+            if (i === 0 || i === 8) {
+              return <line key={`v_${i}`} x1={`${i * 12.5}%`} y1="0%" x2={`${i * 12.5}%`} y2="100%" stroke="#cbd5e1" strokeWidth="1" />;
+            } else {
+              return (
+                <React.Fragment key={`v_${i}`}>
+                  <line x1={`${i * 12.5}%`} y1="0%" x2={`${i * 12.5}%`} y2="44.444%" stroke="#cbd5e1" strokeWidth="1" />
+                  <line x1={`${i * 12.5}%`} y1="55.556%" x2={`${i * 12.5}%`} y2="100%" stroke="#cbd5e1" strokeWidth="1" />
+                </React.Fragment>
+              );
+            }
+          })}
+
+          {/* Diagonals for Palaces */}
+          <line x1="37.5%" y1="0%" x2="62.5%" y2="22.222%" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="3,3" />
+          <line x1="62.5%" y1="0%" x2="37.5%" y2="22.222%" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="3,3" />
+          <line x1="37.5%" y1="77.778%" x2="62.5%" y2="100%" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="3,3" />
+          <line x1="62.5%" y1="77.778%" x2="37.5%" y2="100%" stroke="#cbd5e1" strokeWidth="0.8" strokeDasharray="3,3" />
+
+          {/* River Text */}
+          <text x="25%" y="51.5%" fill="rgba(255,255,255,0.25)" fontSize="6" fontWeight="bold" textAnchor="middle">楚河</text>
+          <text x="75%" y="51.5%" fill="rgba(255,255,255,0.25)" fontSize="6" fontWeight="bold" textAnchor="middle">漢界</text>
+        </svg>
+
+        {/* Row labels on left/right margins (Offset -18px 避免觸壓邊線) */}
+        {Array(10).fill(0).map((_, r) => {
+          const top = `${(r / 9) * 100}%`;
+          return (
+            <React.Fragment key={`row_lbl_${r}`}>
+              <span 
+                className="absolute text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 pointer-events-none select-none"
+                style={{ top, left: '-20px', transform: 'translateY(-50%)' }}
+              >
+                {r}
+              </span>
+              <span 
+                className="absolute text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 pointer-events-none select-none"
+                style={{ top, right: '-20px', transform: 'translateY(-50%)' }}
+              >
+                {r}
+              </span>
+            </React.Fragment>
+          );
+        })}
+
+        {/* Col labels on top/bottom margins */}
+        {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map((char, c) => {
+          const left = `${(c / 8) * 100}%`;
+          return (
+            <React.Fragment key={`col_lbl_${c}`}>
+              <span 
+                className="absolute text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 pointer-events-none select-none"
+                style={{ left, top: '-20px', transform: 'translateX(-50%)' }}
+              >
+                {char}
+              </span>
+              <span 
+                className="absolute text-[9px] sm:text-[10px] font-mono font-bold text-slate-500 pointer-events-none select-none"
+                style={{ left, bottom: '-20px', transform: 'translateX(-50%)' }}
+              >
+                {char}
+              </span>
+            </React.Fragment>
+          );
+        })}
+
+        {/* Active board click targets, pieces, and paths */}
+        <div className="absolute inset-0 z-10">
+          {/* Click catcher tiles for all 90 intersections */}
+          {Array(90).fill(null).map((_, i) => {
+            const row = Math.floor(i / 9);
+            const col = i % 9;
+            const left = `${(col / 8) * 100}%`;
+            const top = `${(row / 9) * 100}%`;
+            
+            return (
+              <div
+                key={`click_${i}`}
+                onClick={() => handleTileClick(i)}
+                className="absolute w-[11%] h-[10%] cursor-pointer z-10"
+                style={{
+                  left,
+                  top,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
+            );
+          })}
+
+          {/* Pieces */}
+          {board.map((piece, i) => {
+            if (!piece) return null;
+            const row = Math.floor(i / 9);
+            const col = i % 9;
+            const left = `${(col / 8) * 100}%`;
+            const top = `${(row / 9) * 100}%`;
+            const isSelected = selectedIdx === i;
+
+            return (
+              <div
+                key={`piece_${i}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTileClick(i);
+                }}
+                className={`absolute aspect-square rounded-full flex items-center justify-center font-bold transition-all duration-150 border-2 select-none z-20 cursor-pointer shadow-md
+                  ${fullscreen ? 'text-sm sm:text-base md:text-lg' : 'text-xs sm:text-sm md:text-base'}
+                  ${isSelected 
+                    ? 'scale-110 border-pink-400 z-30 shadow-[0_0_15px_#ff007f]' 
+                    : 'border-slate-800'}
+                  ${engine.getPieceColor(piece) === 'w' 
+                    ? 'bg-gradient-to-br from-slate-900 via-slate-950 to-black text-rose-500 border-rose-500/40 hover:border-rose-400 shadow-rose-950/40' 
+                    : 'bg-gradient-to-br from-slate-950 via-slate-900 to-black text-emerald-400 border-emerald-500/40 hover:border-emerald-400 shadow-emerald-950/40'}`}
+                style={{
+                  left,
+                  top,
+                  transform: 'translate(-50%, -50%)',
+                  width: '10.5%',
+                }}
+              >
+                <span>{engine.getPieceChineseName(piece)}</span>
+              </div>
+            );
+          })}
+
+          {/* Move Target Guide points */}
+          {activeTargets.map((toIdx) => {
+            const row = Math.floor(toIdx / 9);
+            const col = toIdx % 9;
+            const left = `${(col / 8) * 100}%`;
+            const top = `${(row / 9) * 100}%`;
+            const isPendingTarget = pendingVoiceMove?.to === toIdx;
+
+            return (
+              <div
+                key={`target_${toIdx}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTileClick(toIdx);
+                }}
+                className="absolute aspect-square flex items-center justify-center cursor-pointer z-30"
+                style={{
+                  left,
+                  top,
+                  transform: 'translate(-50%, -50%)',
+                  width: '10%',
+                }}
+              >
+                {isPendingTarget ? (
+                  <>
+                    <div className="absolute w-7 h-7 bg-amber-400 rounded-full animate-ping opacity-80 pointer-events-none" />
+                    <div className="absolute w-5 h-5 bg-amber-500/40 border-2 border-amber-300 rounded-full pointer-events-none flex items-center justify-center shadow-[0_0_10px_#f59e0b]">
+                      <span className="w-2 h-2 bg-amber-300 rounded-full animate-pulse" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="absolute w-3 h-3 bg-pink-500 rounded-full animate-ping opacity-75 pointer-events-none" />
+                    <div className="absolute w-2 h-2 bg-pink-500 rounded-full border border-slate-950 pointer-events-none" />
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Control panel jsx element (reusable)
+  const renderControls = () => (
+    <div className="space-y-4 flex flex-col justify-between h-full">
       {/* Title block */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-2">
         <div className="flex items-center gap-1.5 text-pink-500 font-semibold text-sm">
@@ -870,7 +1054,7 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
       </div>
 
       {/* Voice Assistant Visualizer Panel */}
-      <div className="bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex flex-col items-center space-y-2 relative overflow-hidden">
+      <div className="bg-slate-950/80 rounded-xl p-3.5 border border-slate-800 flex flex-col items-center space-y-2.5 relative overflow-hidden">
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${isListening ? 'bg-pink-500 animate-pulse shadow-[0_0_8px_#ff6699]' : 'bg-slate-600'}`} />
           <span className="text-[11px] text-slate-400 font-mono font-bold uppercase tracking-wider">
@@ -890,8 +1074,8 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
         </div>
 
         {/* Dynamic Transcript text box */}
-        <div className="w-full text-center py-1.5 bg-slate-900/40 rounded-lg border border-slate-800/40 min-h-[32px] flex items-center justify-center">
-          <p className="text-xs text-slate-300 font-medium px-2 italic">
+        <div className="w-full text-center py-2 bg-slate-900/50 rounded-lg border border-slate-800/60 min-h-[36px] flex items-center justify-center">
+          <p className="text-xs sm:text-sm text-slate-300 font-medium px-2 italic">
             {transcript ? `"${transcript}"` : '「點擊麥克風後對著我說話吧」'}
           </p>
         </div>
@@ -899,15 +1083,15 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
         {/* Mic activation button */}
         <button
           onClick={toggleListening}
-          className={`flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 active:scale-90 cursor-pointer shadow-lg
+          className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 active:scale-90 cursor-pointer shadow-lg
             ${isListening 
               ? 'bg-pink-500 text-white shadow-pink-500/20 animate-pulse' 
               : 'bg-slate-900 border border-slate-700 text-slate-400 hover:text-white hover:border-pink-500'}`}
         >
-          {isListening ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+          {isListening ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
         </button>
 
-        <span className="text-[10px] text-slate-500 scale-95 origin-center">
+        <span className="text-[10px] text-slate-500 font-medium">
           {voiceStatusText}
         </span>
       </div>
@@ -963,7 +1147,7 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
 
       {/* Xiangqi Help Modal overlay */}
       {showHelp && (
-        <div className="bg-slate-950 p-3 rounded-xl border border-pink-500/30 space-y-2 text-xs">
+        <div className="bg-slate-950 p-3.5 rounded-xl border border-pink-500/30 space-y-2 text-xs">
           <div className="flex justify-between items-center border-b border-slate-800 pb-1">
             <span className="font-bold text-pink-400">🗣️ 聲控語音語法</span>
             <button onClick={() => setShowHelp(false)} className="text-slate-400 hover:text-white">✕</button>
@@ -978,193 +1162,6 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
           </ul>
         </div>
       )}
-
-      {/* The 10x9 Chessboard container */}
-      <div 
-        ref={containerRef}
-        className={`relative aspect-[9/10] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-inner flex items-center justify-center select-none
-          ${fullscreen ? 'p-3' : 'p-6'}`}
-      >
-        {/* Active Board Area: This container represents the exact board boundaries. All coordinates (0% to 100%) align perfectly within this! */}
-        <div className="relative w-full h-full">
-          {/* Draw Board grid lines (SVG) */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-40" viewBox="0 0 100 100" preserveAspectRatio="none">
-            {/* Horizontal rows (10 rows, y = 0 to 9) */}
-            {Array(10).fill(0).map((_, i) => (
-              <line key={`h_${i}`} x1="0%" y1={`${i * 11.111}%`} x2="100%" y2={`${i * 11.111}%`} stroke="#fff" strokeWidth="1" />
-            ))}
-
-            {/* Vertical columns (split by river row 4.5) */}
-            {Array(9).fill(0).map((_, i) => {
-              if (i === 0 || i === 8) {
-                return <line key={`v_${i}`} x1={`${i * 12.5}%`} y1="0%" x2={`${i * 12.5}%`} y2="100%" stroke="#fff" strokeWidth="1" />;
-              } else {
-                return (
-                  <React.Fragment key={`v_${i}`}>
-                    <line x1={`${i * 12.5}%`} y1="0%" x2={`${i * 12.5}%`} y2="44.444%" stroke="#fff" strokeWidth="1" />
-                    <line x1={`${i * 12.5}%`} y1="55.556%" x2={`${i * 12.5}%`} y2="100%" stroke="#fff" strokeWidth="1" />
-                  </React.Fragment>
-                );
-              }
-            })}
-
-            {/* Diagonals for Palaces */}
-            {/* Top Palace (cols 3 to 5, rows 0 to 2) */}
-            <line x1="37.5%" y1="0%" x2="62.5%" y2="22.222%" stroke="#fff" strokeWidth="0.8" strokeDasharray="2,2" />
-            <line x1="62.5%" y1="0%" x2="37.5%" y2="22.222%" stroke="#fff" strokeWidth="0.8" strokeDasharray="2,2" />
-
-            {/* Bottom Palace (cols 3 to 5, rows 7 to 9) */}
-            <line x1="37.5%" y1="77.778%" x2="62.5%" y2="100%" stroke="#fff" strokeWidth="0.8" strokeDasharray="2,2" />
-            <line x1="62.5%" y1="77.778%" x2="37.5%" y2="100%" stroke="#fff" strokeWidth="0.8" strokeDasharray="2,2" />
-
-            {/* River Text */}
-            <text x="25%" y="51.5%" fill="rgba(255,255,255,0.3)" fontSize="6" fontWeight="bold" textAnchor="middle">楚河</text>
-            <text x="75%" y="51.5%" fill="rgba(255,255,255,0.3)" fontSize="6" fontWeight="bold" textAnchor="middle">漢界</text>
-          </svg>
-
-          {/* Row labels on left/right margins */}
-          {Array(10).fill(0).map((_, r) => {
-            const top = `${(r / 9) * 100}%`;
-            return (
-              <React.Fragment key={`row_lbl_${r}`}>
-                <span 
-                  className="absolute text-[8px] font-mono font-bold text-slate-600 pointer-events-none"
-                  style={{ top, left: '-16px', transform: 'translateY(-50%)' }}
-                >
-                  {r}
-                </span>
-                <span 
-                  className="absolute text-[8px] font-mono font-bold text-slate-600 pointer-events-none"
-                  style={{ top, right: '-16px', transform: 'translateY(-50%)' }}
-                >
-                  {r}
-                </span>
-              </React.Fragment>
-            );
-          })}
-
-          {/* Col labels on top/bottom margins */}
-          {['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'].map((char, c) => {
-            const left = `${(c / 8) * 100}%`;
-            return (
-              <React.Fragment key={`col_lbl_${c}`}>
-                <span 
-                  className="absolute text-[8px] font-mono font-bold text-slate-600 pointer-events-none"
-                  style={{ left, top: '-16px', transform: 'translateX(-50%)' }}
-                >
-                  {char}
-                </span>
-                <span 
-                  className="absolute text-[8px] font-mono font-bold text-slate-600 pointer-events-none"
-                  style={{ left, bottom: '-16px', transform: 'translateX(-50%)' }}
-                >
-                  {char}
-                </span>
-              </React.Fragment>
-            );
-          })}
-
-          {/* Active board click targets, pieces, and paths */}
-          <div className="absolute inset-0 z-10">
-            {/* Click catcher tiles for all 90 intersections */}
-            {Array(90).fill(null).map((_, i) => {
-              const row = Math.floor(i / 9);
-              const col = i % 9;
-              const left = `${(col / 8) * 100}%`;
-              const top = `${(row / 9) * 100}%`;
-              
-              return (
-                <div
-                  key={`click_${i}`}
-                  onClick={() => handleTileClick(i)}
-                  className="absolute w-[11%] h-[10%] cursor-pointer z-10"
-                  style={{
-                    left,
-                    top,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                />
-              );
-            })}
-
-            {/* Pieces */}
-            {board.map((piece, i) => {
-              if (!piece) return null;
-              const row = Math.floor(i / 9);
-              const col = i % 9;
-              const left = `${(col / 8) * 100}%`;
-              const top = `${(row / 9) * 100}%`;
-              const isSelected = selectedIdx === i;
-
-              return (
-                <div
-                  key={`piece_${i}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTileClick(i);
-                  }}
-                  className={`absolute aspect-square rounded-full flex items-center justify-center font-bold transition-all duration-150 border-2 select-none z-20 cursor-pointer
-                    ${fullscreen ? 'text-base sm:text-lg' : 'text-xs sm:text-sm md:text-base'}
-                    ${isSelected 
-                      ? 'scale-110 border-pink-400 z-30 shadow-[0_0_12px_#ff007f]' 
-                      : 'border-slate-800 shadow-md'}
-                    ${engine.getPieceColor(piece) === 'w' 
-                      ? 'bg-gradient-to-br from-slate-900 via-slate-950 to-black text-rose-500 border-rose-500/40 hover:border-rose-400 shadow-rose-950/40' 
-                      : 'bg-gradient-to-br from-slate-950 via-slate-900 to-black text-emerald-400 border-emerald-500/40 hover:border-emerald-400 shadow-emerald-950/40'}`}
-                  style={{
-                    left,
-                    top,
-                    transform: 'translate(-50%, -50%)',
-                    width: '10.5%',
-                  }}
-                >
-                  <span>{engine.getPieceChineseName(piece)}</span>
-                </div>
-              );
-            })}
-
-            {/* Move Target Guide points */}
-            {activeTargets.map((toIdx) => {
-              const row = Math.floor(toIdx / 9);
-              const col = toIdx % 9;
-              const left = `${(col / 8) * 100}%`;
-              const top = `${(row / 9) * 100}%`;
-              const isPendingTarget = pendingVoiceMove?.to === toIdx;
-
-              return (
-                <div
-                  key={`target_${toIdx}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTileClick(toIdx);
-                  }}
-                  className="absolute aspect-square flex items-center justify-center cursor-pointer z-30"
-                  style={{
-                    left,
-                    top,
-                    transform: 'translate(-50%, -50%)',
-                    width: '10%',
-                  }}
-                >
-                  {isPendingTarget ? (
-                    <>
-                      <div className="absolute w-7 h-7 bg-amber-400 rounded-full animate-ping opacity-80 pointer-events-none" />
-                      <div className="absolute w-5 h-5 bg-amber-500/40 border-2 border-amber-300 rounded-full pointer-events-none flex items-center justify-center shadow-[0_0_10px_#f59e0b]">
-                        <span className="w-2 h-2 bg-amber-300 rounded-full animate-pulse" />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="absolute w-3 h-3 bg-pink-500 rounded-full animate-ping opacity-75 pointer-events-none" />
-                      <div className="absolute w-2 h-2 bg-pink-500 rounded-full border border-slate-950 pointer-events-none" />
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
 
       {/* Mode settings & manual controls block */}
       <div className="space-y-2.5">
@@ -1191,7 +1188,7 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
         </div>
 
         {/* Move History / Real-time Chess Logs */}
-        <div className="bg-slate-950 rounded-lg p-2 border border-slate-800 h-[80px] overflow-y-auto custom-scrollbar flex flex-col space-y-1">
+        <div className={`bg-slate-950 rounded-lg p-2 border border-slate-800 overflow-y-auto custom-scrollbar flex flex-col space-y-1 ${fullscreen ? 'h-[120px]' : 'h-[80px]'}`}>
           {logs.length === 0 ? (
             <p className="text-[10px] text-slate-500 italic text-center my-auto">無走棋紀錄</p>
           ) : (
@@ -1224,7 +1221,31 @@ export default function XiangqiVoiceGame({ fullscreen = false }: XiangqiVoiceGam
           </button>
         </div>
       </div>
+    </div>
+  );
 
+  // Main Render
+  if (fullscreen) {
+    return (
+      <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start bg-slate-900/90 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl select-none">
+        {/* Left Side: Giant Chessboard */}
+        <div className="lg:col-span-7 xl:col-span-7 flex flex-col items-center justify-center">
+          {renderBoard()}
+        </div>
+
+        {/* Right Side: Voice Console & Controls */}
+        <div className="lg:col-span-5 xl:col-span-5 w-full">
+          {renderControls()}
+        </div>
+      </div>
+    );
+  }
+
+  // Default Normal Mode (compact single column)
+  return (
+    <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl backdrop-blur-xl max-w-sm w-full mx-auto select-none flex flex-col space-y-4">
+      {renderControls()}
+      {renderBoard()}
     </div>
   );
 }
